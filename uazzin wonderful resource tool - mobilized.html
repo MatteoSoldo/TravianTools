@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Travian Master Planner</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #1e293b; }
+    .card { background: white; width: 100%; max-width: 950px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; box-sizing: border-box; }
+    h2 { margin-top: 0; font-size: 1.25rem; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; display:flex; justify-content: space-between; align-items: center;}
+    h3 { font-size: 1.05rem; color: #334155; margin-bottom: 10px; margin-top: 20px;}
+    
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .lvl { display: flex; gap: 4px; align-items: stretch; }
+    * { box-sizing: border-box; }
+    input, select { min-width: 0; max-width: 100%; }
+    .lvl input { text-align: center; flex: 1; }
+    .btn-step { display: none; background: #e2e8f0; color: #0f172a; font-size: 1.2rem; padding: 0 14px; border-radius: 6px; border: none; font-weight: bold; }
+    @media (max-width: 768px) {
+       .grid-4 { grid-template-columns: repeat(2, 1fr); }
+       .grid-2 { grid-template-columns: 1fr; }
+       .btn-step { display: block; }
+       body { padding: 10px; }
+       .card { padding: 14px; }
+       input, select { font-size: 16px; }
+       .grid-4 > * { min-width: 0; overflow-wrap: anywhere; }
+       .table-container { overflow: visible; }
+       #calc_table thead { display: none; }
+       #calc_table, #calc_table tbody { display: block; }
+       #calc_table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 0; border-bottom: 2px solid #e2e8f0; }
+       #calc_table td { display: block; padding: 0; border: none; min-width: 0; overflow-wrap: anywhere; }
+       #calc_table td::before { content: attr(data-label); display: block; font-size: 0.75rem; color: #64748b; }
+       #calc_table td:nth-child(2), #calc_table td:nth-child(9) { grid-column: 1 / -1; }
+       #calc_table td:nth-child(9)::before { display: none; }
+    }
+    .input-group { display: flex; flex-direction: column; }
+    label { font-size: 0.85rem; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+    input, select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-family: monospace; font-size: 1rem;}
+    input:focus, select:focus { border-color: #3b82f6; }
+    
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    th, td { padding: 8px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+    th { background: #f8fafc; font-weight: 600; color: #475569; }
+    td input, td select { width: 100%; box-sizing: border-box; }
+    
+    .btn { padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s;}
+    .btn-add { background: #10b981; color: white; }
+    .btn-add:hover { background: #059669; }
+    .btn-del { background: #ef4444; color: white; padding: 6px 10px; }
+    .btn-del:hover { background: #dc2626; }
+    
+    .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-top: 15px; }
+    .status-banner { padding: 12px; text-align: center; border-radius: 8px; font-weight: bold; margin-bottom: 15px; }
+    .status-ok { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .status-fail { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    
+    .checkbox-group { display: flex; align-items: center; margin-top: 5px; }
+    .checkbox-group input { width: 18px; height: 18px; margin-right: 8px; cursor: pointer;}
+    
+    .metric-box { background:#fff; border:1px solid #e2e8f0; padding:12px; text-align:center; border-radius:8px; display: flex; flex-direction: column; justify-content: center;}
+    .metric-val { font-size: 1.15rem; font-weight: bold; margin-top: 5px; font-family: monospace;}
+    
+    .table-container { overflow-x: auto; }
+  </style>
+</head>
+<body>
+
+  <h1 style="color:#0f172a; font-size: 1.8rem; margin-bottom: 20px;">Travian Master Planner</h1>
+
+  <div id="app" style="width: 100%; max-width: 950px;">
+    
+    <!-- 1. Capacità -->
+    <div class="card">
+      <h2>1. Capienza Magazzini</h2>
+      <div class="grid-2">
+        <div class="input-group">
+          <label>Capienza Magazzino (Legno, Argilla, Ferro)</label>
+          <input type="number" id="cap_mag" oninput="saveAndCalc()" value="400000">
+        </div>
+        <div class="input-group">
+          <label>Capienza Granaio (Grano)</label>
+          <input type="number" id="cap_gran" oninput="saveAndCalc()" value="400000">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Stato Attuale e Produzione -->
+    <div class="card">
+      <h2>2. Disponibilità & Produzione Oraria</h2>
+      <label style="display:block; margin-bottom: 5px; color:#1e293b;">Risorse attuali:</label>
+      <div class="grid-4" style="margin-bottom: 15px;">
+        <div class="input-group"><label>🪵 Legno</label><input type="number" id="curr_l" value="0" oninput="saveAndCalc()"></div>
+        <div class="input-group"><label>🧱 Argilla</label><input type="number" id="curr_c" value="0" oninput="saveAndCalc()"></div>
+        <div class="input-group"><label>⛏️ Ferro</label><input type="number" id="curr_i" value="0" oninput="saveAndCalc()"></div>
+        <div class="input-group"><label>🌾 Grano</label><input type="number" id="curr_cr" value="0" oninput="saveAndCalc()"></div>
+      </div>
+      
+      <label style="display:block; margin-bottom: 5px; color:#1e293b;">Produzione netta/h:</label>
+      <div class="grid-4">
+        <div class="input-group"><label>🪵 Prod. Legno/h</label><input type="number" id="prod_l" value="0" oninput="saveAndCalc()"></div>
+        <div class="input-group"><label>🧱 Prod. Argilla/h</label><input type="number" id="prod_c" value="0" oninput="saveAndCalc()"></div>
+        <div class="input-group"><label>⛏️ Prod. Ferro/h</label><input type="number" id="prod_i" value="0" oninput="saveAndCalc()"></div>
+        <div class="input-group"><label>🌾 Prod. Grano/h</label><input type="number" id="prod_cr" value="0" oninput="saveAndCalc()"></div>
+      </div>
+    </div>
+
+    <!-- 3. Coda di Costruzione -->
+    <div class="card">
+      <h2>3. Coda Costruzioni & Truppe</h2>
+      <div class="table-container">
+          <table id="calc_table">
+            <thead>
+              <tr>
+                <th style="width: 8%">Q.tà</th>
+                <th style="width: 20%">Elemento</th>
+                <th style="width: 9%" title="Vuoto = calcola solo Livello Target">Da Liv.</th>
+                <th style="width: 9%">A Liv.</th>
+                <th>Legno</th>
+                <th>Argilla</th>
+                <th>Ferro</th>
+                <th>Grano</th>
+                <th style="width: 5%"></th>
+              </tr>
+            </thead>
+            <tbody id="rows_container"></tbody>
+          </table>
+      </div>
+      <button class="btn btn-add" onclick="addRow()">+ Aggiungi Riga</button>
+      
+            <div class="summary-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+           <span style="font-weight: bold; color: #475569;">Costo:</span>
+           <span style="font-size: 1.3rem; font-weight: bold; color: #1e3a8a;">TOTALE: <span id="tot_grand" style="font-family: monospace;">0</span></span>
+        </div>
+        <div class="grid-4" style="font-weight:bold; font-size:1.15rem; text-align:center; font-family: monospace;">
+          <div style="color: #047857;">🪵 <span id="tot_l">0</span></div>
+          <div style="color: #b45309;">🧱 <span id="tot_c">0</span></div>
+          <div style="color: #334155;">⛏️ <span id="tot_i">0</span></div>
+          <div style="color: #ca8a04;">🌾 <span id="tot_cr">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Analisi Avanzata -->
+    <div class="card">
+      <h2>4. Analisi</h2>
+      
+      <!-- A. Limiti Magazzino -->
+      <h3>A. Capienza</h3>
+      <div id="cap_status" class="grid-4" style="margin-bottom: 15px;"></div>
+      <div id="npc_banner" class="status-banner status-ok"></div>
+      
+      <!-- B. Risorse e Tempistiche -->
+      <h3>B. Risorse e Tempi</h3>
+      <div class="grid-4" style="margin-bottom: 10px;">
+         <div class="metric-box"><label>Spesa Totale</label><span class="metric-val" id="ui_spesa_tot" style="color:#0f172a;">0</span></div>
+         <div class="metric-box"><label>Risorse Possedute</label><span class="metric-val" id="ui_curr_tot" style="color:#166534;">0</span></div>
+         <div class="metric-box"><label>Totale Mancante</label><span class="metric-val" id="ui_miss_tot" style="color:#991b1b;">0</span></div>
+         <div class="metric-box"><label>Produzione/h</label><span class="metric-val" id="ui_prod_tot" style="color:#0284c7;">0</span></div>
+      </div>
+      
+      <div class="grid-2" style="background:#f8fafc; border:1px solid #e2e8f0; padding:15px; border-radius:8px;">
+         <div>
+            <label style="color:#2563eb; font-size:0.95rem;">⏱️ Tempo con sgoldata:</label>
+            <div id="ui_eta_npc" style="font-size: 1.25rem; font-weight: bold; color: #1e3a8a; margin-top:5px;">0h 0m</div>
+         </div>
+         <div style="border-left: 1px solid #cbd5e1; padding-left: 15px;">
+            <label style="color:#475569; font-size:0.95rem;">⏳ Tempo naturale:</label>
+            <div id="ui_eta_nat" style="font-size: 1.15rem; font-weight: bold; color: #334155; margin-top:5px;">0h 0m</div>
+         </div>
+      </div>
+
+      <!-- C. NPC Push -->
+      <div id="npc_panel">
+        <h3>C. Sgoldata Ottimizzata</h3>
+        <p style="font-size:0.9rem; color:#475569; margin-bottom:10px;">
+          Proporzioni: <span id="ratios_txt" style="font-weight:bold;">...</span>
+        </p>
+        <div class="checkbox-group" style="margin: 0 0 15px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <input type="checkbox" id="exclude_crop" onchange="saveAndCalc()">
+          <label for="exclude_crop" style="margin:0; cursor:pointer; color:#334155; font-weight: bold;">
+            Escludi grano dalla sgoldata
+          </label>
+        </div>
+        <div id="npc_space_warn" class="status-banner status-fail" style="display:none;"></div>
+        <div id="npc_cover_banner" class="status-banner status-ok"></div>
+        <div id="npc_panel_data" class="grid-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const appData = [
+      {name: "Woodcutter", lumber: 40, clay: 100, iron: 50, crop: 60, k: 1.67},
+      {name: "Clay pit", lumber: 80, clay: 40, iron: 80, crop: 50, k: 1.67},
+      {name: "Iron mine", lumber: 100, clay: 80, iron: 30, crop: 60, k: 1.67},
+      {name: "Cropland", lumber: 70, clay: 90, iron: 70, crop: 20, k: 1.67},
+      {name: "Grain mill", lumber: 500, clay: 440, iron: 380, crop: 1240, k: 1.8},
+      {name: "Sawmill", lumber: 520, clay: 380, iron: 290, crop: 90, k: 1.8},
+      {name: "Brickyard", lumber: 440, clay: 480, iron: 320, crop: 50, k: 1.8},
+      {name: "Iron foundry", lumber: 200, clay: 450, iron: 510, crop: 120, k: 1.8},
+      {name: "Bakery", lumber: 1200, clay: 1480, iron: 870, crop: 1600, k: 1.8},
+      {name: "Warehouse", lumber: 130, clay: 160, iron: 90, crop: 40, k: 1.28},
+      {name: "Granary", lumber: 80, clay: 100, iron: 70, crop: 20, k: 1.28},
+      {name: "Blacksmith", lumber: 170, clay: 200, iron: 380, crop: 130, k: 1.28},
+      {name: "Armoury", lumber: 130, clay: 210, iron: 410, crop: 130, k: 1.28},
+      {name: "Tournament square", lumber: 1750, clay: 2250, iron: 1530, crop: 240, k: 1.28},
+      {name: "Main building", lumber: 70, clay: 40, iron: 60, crop: 20, k: 1.28},
+      {name: "Rally Point", lumber: 110, clay: 160, iron: 90, crop: 70, k: 1.28},
+      {name: "Marketplace", lumber: 80, clay: 70, iron: 120, crop: 70, k: 1.28},
+      {name: "Embassy", lumber: 180, clay: 130, iron: 150, crop: 80, k: 1.28},
+      {name: "Barracks", lumber: 210, clay: 140, iron: 260, crop: 120, k: 1.28},
+      {name: "Stable", lumber: 260, clay: 140, iron: 220, crop: 100, k: 1.28},
+      {name: "Workshop", lumber: 460, clay: 510, iron: 600, crop: 320, k: 1.28},
+      {name: "Academy", lumber: 220, clay: 160, iron: 90, crop: 40, k: 1.28},
+      {name: "Cranny", lumber: 40, clay: 50, iron: 30, crop: 10, k: 1.28},
+      {name: "Townhall", lumber: 1250, clay: 1110, iron: 1260, crop: 600, k: 1.28},
+      {name: "Residence", lumber: 580, clay: 460, iron: 350, crop: 180, k: 1.28},
+      {name: "Palace", lumber: 550, clay: 800, iron: 750, crop: 250, k: 1.28},
+      {name: "Treasury", lumber: 2880, clay: 2740, iron: 2580, crop: 990, k: 1.28},
+      {name: "Trade office", lumber: 1400, clay: 1330, iron: 1200, crop: 400, k: 1.28},
+      {name: "Great barracks", lumber: 630, clay: 420, iron: 780, crop: 360, k: 1.28},
+      {name: "Great stable", lumber: 780, clay: 420, iron: 660, crop: 300, k: 1.28},
+      {name: "City wall", lumber: 70, clay: 90, iron: 170, crop: 70, k: 1.28},
+      {name: "Earth wall", lumber: 120, clay: 200, iron: 0, crop: 80, k: 1.28},
+      {name: "Palisade", lumber: 160, clay: 100, iron: 80, crop: 60, k: 1.28},
+      {name: "Stonemason", lumber: 155, clay: 130, iron: 125, crop: 70, k: 1.28},
+      {name: "Brewery", lumber: 1200, clay: 1400, iron: 1050, crop: 2200, k: 1.28},
+      {name: "Trapper", lumber: 100, clay: 100, iron: 100, crop: 100, k: 1.28},
+      {name: "Hero's mansion", lumber: 700, clay: 670, iron: 700, crop: 240, k: 1.33},
+      {name: "Great Warehouse", lumber: 650, clay: 800, iron: 450, crop: 200, k: 1.28},
+      {name: "Great Granary", lumber: 400, clay: 500, iron: 350, crop: 100, k: 1.28},
+      {name: "Wonder of the World", lumber: 66700, clay: 69050, iron: 72200, crop: 13200, k: 1.0275},
+      {name: "falange", lumber: 100, clay: 130, iron: 55, crop: 30, k: 1},
+      {name: "spia", lumber: 170, clay: 150, iron: 20, crop: 40, k: 1},
+      {name: "imperatoris", lumber: 120, clay: 65, iron: 50, crop: 14, k: 1},
+      {name: "festa", lumber: 6400, clay: 6650, iron: 5940, crop: 1340, k: 1},
+      {name: "megafesta", lumber: 29700, clay: 33250, iron: 32000, crop: 6700, k: 1},
+      {name: "settler", lumber: 4400, clay: 5600, iron: 4200, crop: 3900, k: 1}
+    ];
+
+    let rows = [];
+    let rowIdCounter = 0;
+    const inputsToSave = ['cap_mag', 'cap_gran', 'curr_l', 'curr_c', 'curr_i', 'curr_cr', 'prod_l', 'prod_c', 'prod_i', 'prod_cr'];
+
+    window.onload = function() {
+      inputsToSave.forEach(id => {
+         if(localStorage.getItem('tm_'+id)) document.getElementById(id).value = localStorage.getItem('tm_'+id);
+      });
+      if(localStorage.getItem('tm_exclude_crop')) document.getElementById('exclude_crop').checked = (localStorage.getItem('tm_exclude_crop') === 'true');
+      
+      addRow(); 
+    };
+
+    function saveAndCalc() {
+      inputsToSave.forEach(id => localStorage.setItem('tm_'+id, document.getElementById(id).value));
+      localStorage.setItem('tm_exclude_crop', document.getElementById('exclude_crop').checked);
+      calculateAll();
+    }
+
+    function addRow() {
+      const id = rowIdCounter++;
+      rows.push({ id: id, qty: 1, itemIdx: 0, da: "", a: 1, l: 0, c: 0, i: 0, cr: 0 });
+      renderRows();
+      calculateAll();
+    }
+
+    function removeRow(id) {
+      rows = rows.filter(r => r.id !== id);
+      renderRows();
+      calculateAll();
+    }
+
+    function updateRowData(id, field, value) {
+      const row = rows.find(r => r.id === id);
+      if(row) {
+        row[field] = value;
+        calculateAll();
+      }
+    }
+
+    function stepLevel(btn, id, field, delta) {
+      const row = rows.find(r => r.id === id);
+      const input = btn.parentNode.querySelector('input');
+      if (!row) return;
+      let cur = parseInt(input.value);
+      if (isNaN(cur)) cur = (field === 'da') ? (row.a - 1) : 1;
+      let next = Math.max(field === 'a' ? 1 : 0, cur + delta);
+      input.value = next;
+      updateRowData(id, field, field === 'a' ? next : String(next));
+    }
+
+    function renderRows() {
+      const container = document.getElementById('rows_container');
+      container.innerHTML = '';
+      let optionsHtml = appData.map((item, idx) => `<option value="${idx}">${item.name}</option>`).join('');
+
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td data-label="Q.tà"><input type="number" min="1" value="${row.qty}" oninput="updateRowData(${row.id}, 'qty', parseInt(this.value)||1)"></td>
+          <td data-label="Elemento"><select onchange="updateRowData(${row.id}, 'itemIdx', parseInt(this.value))">${optionsHtml}</select></td>
+          <td data-label="Da Liv."><div class="lvl"><button type="button" class="btn-step" onclick="stepLevel(this, ${row.id}, 'da', -1)">−</button><input type="number" inputmode="numeric" pattern="[0-9]*" min="0" placeholder="auto" value="${row.da}" onfocus="this.select()" oninput="updateRowData(${row.id}, 'da', this.value)"><button type="button" class="btn-step" onclick="stepLevel(this, ${row.id}, 'da', 1)">+</button></div></td>
+          <td data-label="A Liv."><div class="lvl"><button type="button" class="btn-step" onclick="stepLevel(this, ${row.id}, 'a', -1)">−</button><input type="number" inputmode="numeric" pattern="[0-9]*" min="1" value="${row.a}" onfocus="this.select()" oninput="updateRowData(${row.id}, 'a', parseInt(this.value)||1)"><button type="button" class="btn-step" onclick="stepLevel(this, ${row.id}, 'a', 1)">+</button></div></td>
+          <td data-label="Legno" id="l_${row.id}" style="color:#047857; font-family:monospace;">0</td>
+          <td data-label="Argilla" id="c_${row.id}" style="color:#b45309; font-family:monospace;">0</td>
+          <td data-label="Ferro" id="i_${row.id}" style="color:#334155; font-family:monospace;">0</td>
+          <td data-label="Grano" id="cr_${row.id}" style="color:#ca8a04; font-family:monospace;">0</td>
+          <td><button class="btn btn-del" onclick="removeRow(${row.id})">✖</button></td>
+        `;
+        tr.querySelector('select').value = row.itemIdx;
+        container.appendChild(tr);
+      });
+    }
+
+    function formatNum(num) {
+        return num.toLocaleString('it-IT');
+    }
+
+    function formatDiff(val) {
+        if(val >= 0) return `<span style="color:#166534;">Avanzano: +${formatNum(val)}</span>`;
+        return `<span style="color:#991b1b;">Mancano: ${formatNum(-val)}</span>`;
+    }
+
+    function calculateAll() {
+      let tot_l = 0, tot_c = 0, tot_i = 0, tot_cr = 0;
+
+      // 1. Calcolo Spesa Riga per Riga
+      rows.forEach(row => {
+        let item = appData[row.itemIdx];
+        let rL = 0, rC = 0, rI = 0, rCr = 0;
+
+        if (item.k <= 1) { 
+          rL = row.qty * item.lumber; rC = row.qty * item.clay; rI = row.qty * item.iron; rCr = row.qty * item.crop;
+        } else { 
+          let a_lvl = parseInt(row.a) || 1;
+          let da_lvl = row.da !== "" ? parseInt(row.da) : (a_lvl - 1); 
+          if(da_lvl >= a_lvl) da_lvl = a_lvl - 1; 
+          
+          for (let lvl = da_lvl + 1; lvl <= a_lvl; lvl++) {
+            let mult = Math.pow(item.k, lvl - 1);
+            rL += Math.round((item.lumber * mult) / 5) * 5;
+            rC += Math.round((item.clay * mult) / 5) * 5;
+            rI += Math.round((item.iron * mult) / 5) * 5;
+            rCr += Math.round((item.crop * mult) / 5) * 5;
+          }
+          rL *= row.qty; rC *= row.qty; rI *= row.qty; rCr *= row.qty;
+        }
+
+        document.getElementById(`l_${row.id}`).innerText = formatNum(rL);
+        document.getElementById(`c_${row.id}`).innerText = formatNum(rC);
+        document.getElementById(`i_${row.id}`).innerText = formatNum(rI);
+        document.getElementById(`cr_${row.id}`).innerText = formatNum(rCr);
+
+        tot_l += rL; tot_c += rC; tot_i += rI; tot_cr += rCr;
+      });
+
+      // 2. Totali Spesa
+      let spesa_tot = tot_l + tot_c + tot_i + tot_cr;
+      document.getElementById('tot_l').innerText = formatNum(tot_l);
+      document.getElementById('tot_c').innerText = formatNum(tot_c);
+      document.getElementById('tot_i').innerText = formatNum(tot_i);
+      document.getElementById('tot_cr').innerText = formatNum(tot_cr);
+      document.getElementById('tot_grand').innerText = formatNum(spesa_tot);
+
+      // 3. Analisi Fattibilità (Spazio Magazzino)
+      let cap_mag = parseInt(document.getElementById('cap_mag').value) || 0;
+      let cap_gran = parseInt(document.getElementById('cap_gran').value) || 0;
+      
+      let rem_l = cap_mag - tot_l;
+      let rem_c = cap_mag - tot_c;
+      let rem_i = cap_mag - tot_i;
+      let rem_cr = cap_gran - tot_cr;
+      
+      document.getElementById('cap_status').innerHTML = `
+        <div class="metric-box">🪵 ${formatDiff(rem_l)}</div>
+        <div class="metric-box">🧱 ${formatDiff(rem_c)}</div>
+        <div class="metric-box">⛏️ ${formatDiff(rem_i)}</div>
+        <div class="metric-box">🌾 ${formatDiff(rem_cr)}</div>
+        <div style="grid-column: 1 / -1; background:#f1f5f9; padding:8px; text-align:center; font-weight:bold; border-radius:6px; border:1px solid #cbd5e1;">
+           Spazio totale rimanente: ${formatDiff(rem_l + rem_c + rem_i + rem_cr)}
+        </div>
+      `;
+
+      let isFeasibleSpace = (rem_l >= 0 && rem_c >= 0 && rem_i >= 0 && rem_cr >= 0);
+      let npcBanner = document.getElementById('npc_banner');
+      let npcPanel = document.getElementById('npc_panel');
+
+      if (!isFeasibleSpace) {
+        npcBanner.className = 'status-banner status-fail';
+        npcBanner.innerHTML = '❌ Capienza insufficiente per tutta la coda.';
+      } else {
+        npcBanner.className = 'status-banner status-ok';
+        npcBanner.innerHTML = '✅ La coda entra nei magazzini.';
+      }
+
+      // 4. Analisi Risorse e Tempi
+      let curr_l = parseInt(document.getElementById('curr_l').value) || 0;
+      let curr_c = parseInt(document.getElementById('curr_c').value) || 0;
+      let curr_i = parseInt(document.getElementById('curr_i').value) || 0;
+      let curr_cr = parseInt(document.getElementById('curr_cr').value) || 0;
+      let curr_tot = curr_l + curr_c + curr_i + curr_cr;
+
+      let prod_l = parseInt(document.getElementById('prod_l').value) || 0;
+      let prod_c = parseInt(document.getElementById('prod_c').value) || 0;
+      let prod_i = parseInt(document.getElementById('prod_i').value) || 0;
+      let prod_cr = parseInt(document.getElementById('prod_cr').value) || 0;
+      let prod_tot = prod_l + prod_c + prod_i + prod_cr;
+
+      let miss_tot = Math.max(0, spesa_tot - curr_tot);
+
+      document.getElementById('ui_spesa_tot').innerText = formatNum(spesa_tot);
+      document.getElementById('ui_curr_tot').innerText = formatNum(curr_tot);
+      document.getElementById('ui_miss_tot').innerText = formatNum(miss_tot);
+      document.getElementById('ui_prod_tot').innerText = formatNum(prod_tot);
+
+      // Calcolo Tempo NPC
+      let etaNpc = "Disponibile ora!";
+      if (miss_tot > 0) {
+         if(prod_tot > 0) {
+             let tm = Math.round((miss_tot / prod_tot) * 60);
+             etaNpc = `${Math.floor(tm / 60)}h ${tm % 60}m`;
+         } else {
+             etaNpc = "Produzione zero";
+         }
+      }
+      document.getElementById('ui_eta_npc').innerText = etaNpc;
+
+      // Calcolo Tempo Naturale
+      let miss_l = Math.max(0, tot_l - curr_l);
+      let miss_c = Math.max(0, tot_c - curr_c);
+      let miss_i = Math.max(0, tot_i - curr_i);
+      let miss_cr = Math.max(0, tot_cr - curr_cr);
+      
+      let tL = (miss_l > 0 && prod_l > 0) ? (miss_l / prod_l) : (miss_l > 0 ? Infinity : 0);
+      let tC = (miss_c > 0 && prod_c > 0) ? (miss_c / prod_c) : (miss_c > 0 ? Infinity : 0);
+      let tI = (miss_i > 0 && prod_i > 0) ? (miss_i / prod_i) : (miss_i > 0 ? Infinity : 0);
+      let tCr = (miss_cr > 0 && prod_cr > 0) ? (miss_cr / prod_cr) : (miss_cr > 0 ? Infinity : 0);
+      
+      let maxT = Math.max(tL, tC, tI, tCr);
+      let etaNat = "Disponibile ora!";
+      
+      if (maxT === Infinity) {
+          etaNat = "Risorse bloccate (Prod = 0)";
+      } else if (maxT > 0) {
+          let tm2 = Math.round(maxT * 60);
+          etaNat = `${Math.floor(tm2 / 60)}h ${tm2 % 60}m`;
+      }
+      document.getElementById('ui_eta_nat').innerText = etaNat;
+
+      // 5. Sgoldata
+      {
+          let includeCrop = !document.getElementById('exclude_crop').checked;
+
+          let keys  = includeCrop ? ['l','c','i','cr'] : ['l','c','i'];
+          let names = {l:'Legno', c:'Argilla', i:'Ferro', cr:'Grano'};
+          let icons = {l:'🪵', c:'🧱', i:'⛏️', cr:'🌾'};
+          let bg    = {l:['#ecfdf5','#a7f3d0','#047857'], c:['#fffbeb','#fde68a','#b45309'],
+                       i:['#f8fafc','#e2e8f0','#334155'], cr:['#fefce8','#fef08a','#ca8a04']};
+          let cost  = {l:tot_l, c:tot_c, i:tot_i, cr:tot_cr};
+          let curr  = {l:curr_l, c:curr_c, i:curr_i, cr:curr_cr};
+          let cap   = {l:cap_mag, c:cap_mag, i:cap_mag, cr:cap_gran};
+
+          let spesaBase = keys.reduce((t,k) => t + cost[k], 0);
+          let pool      = curr_l + curr_c + curr_i + curr_cr;
+          let share = {};
+          keys.forEach(k => share[k] = spesaBase > 0 ? cost[k] / spesaBase : 0);
+
+          let target = {};
+          let free = keys.filter(k => share[k] > 0);
+          let left = pool;
+          keys.forEach(k => target[k] = 0);
+          for (let iter = 0; iter < keys.length && free.length > 0; iter++) {
+              let sumShare = free.reduce((t,k) => t + share[k], 0);
+              let capped = free.filter(k => left * share[k] / sumShare > cap[k]);
+              if (capped.length === 0) {
+                  free.forEach(k => target[k] = Math.floor(left * share[k] / sumShare));
+                  let rest = left - free.reduce((t,k) => t + target[k], 0);
+                  let big = free.reduce((m,k) => share[k] > share[m] ? k : m, free[0]);
+                  target[big] += rest;
+                  left = 0;
+                  break;
+              }
+              capped.forEach(k => { target[k] = cap[k]; left -= cap[k]; });
+              free = free.filter(k => !capped.includes(k));
+          }
+
+          document.getElementById('ratios_txt').innerText = keys.map(k =>
+              `${k==='cr' ? 'G' : k==='i' ? 'F' : k.toUpperCase()}: ${Math.round(share[k]*100)}%`).join(' | ');
+
+          let covered = keys.reduce((t,k) => t + Math.min(target[k], cost[k]), 0);
+          let coverPct = spesaBase > 0 ? (covered / spesaBase) * 100 : 100;
+          let banner = document.getElementById('npc_cover_banner');
+
+          if (covered >= spesaBase) {
+              banner.className = 'status-banner status-ok';
+              banner.innerHTML = `✅ Coda coperta al 100% (avanzo +${formatNum(pool - spesaBase)})`;
+          } else {
+              banner.className = 'status-banner';
+              banner.style.cssText = 'background:#fef9c3; color:#854d0e; border:1px solid #fde68a;';
+              banner.innerHTML = `⚠️ Coda coperta al <b>${coverPct.toFixed(1)}%</b> (mancano ${formatNum(spesaBase - covered)})`;
+          }
+          if (covered >= spesaBase) banner.style.cssText = '';
+
+          document.getElementById('npc_panel_data').innerHTML = keys.map(k => {
+              let diffCost = target[k] - cost[k];
+              let move = target[k] - curr[k];
+              let costTxt = diffCost >= 0
+                  ? `<span style="color:#166534;">avanzo +${formatNum(diffCost)}</span>`
+                  : `<span style="color:#991b1b;">mancano ${formatNum(-diffCost)}</span>`;
+              let moveTxt = move >= 0 ? `+${formatNum(move)}` : `−${formatNum(-move)}`;
+              return `<div class="metric-box" style="background:${bg[k][0]}; border-color:${bg[k][1]};">
+                        <label>${icons[k]} ${names[k]} dopo sgoldata</label>
+                        <span class="metric-val" style="color:${bg[k][2]};">${formatNum(target[k])}</span>
+                        <div style="font-size:0.8rem; margin-top:6px; color:#475569;">costo ${formatNum(cost[k])}<br>${costTxt}</div>
+                        <div style="font-size:0.8rem; margin-top:4px; color:#475569;">da scambiare: <b>${moveTxt}</b></div>
+                      </div>`;
+          }).join('');
+
+          let warn = document.getElementById('npc_space_warn');
+          let over = keys.filter(k => cost[k] > cap[k]);
+          if (over.length > 0) {
+              warn.style.display = 'block';
+              warn.innerHTML = '❌ Capienza superata: ' + over.map(k => names[k]).join(', ');
+          } else {
+              warn.style.display = 'none';
+          }
+      }
+    }
+  </script>
+</body>
+</html>
